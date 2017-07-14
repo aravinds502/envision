@@ -1,0 +1,16 @@
+Package: envision
+Title: What the Package Does (one line, title case)
+Version: 0.0.0.9000
+Authors@R: person("Aravind", "S", email = "aravind.reddy@altair.com", role = c("aut", "cre"))
+Description: Gets the connection details of the datasource by connecting to the envision server.
+Depends: R (>= 3.4.0)
+Imports:
+		stringr(>= 1.2.0),
+		httr(>= 1.2.1)
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
