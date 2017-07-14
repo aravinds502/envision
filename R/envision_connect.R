@@ -13,7 +13,7 @@ envision_connect <- function(baseUrl,secretKey) {
   url_length <- stringr::str_length(baseUrl)
 
   if(substr(baseUrl,url_length,url_length) == "/") {
-    baseUrl <- substr(baseurl,0,url_length-1)
+    baseUrl <- substr(baseUrl,0,url_length-1)
   }
 
   baseUrl <- paste(baseUrl,"/datasource.do?action=dsExtConnect", sep="")
