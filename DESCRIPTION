@@ -6,7 +6,8 @@ Description: Gets the connection details of the datasource by connecting to the 
 Depends: R (>= 3.4.0)
 Imports:
 		stringr(>= 1.2.0),
-		httr(>= 1.2.1)
+		httr(>= 1.2.1),
+		jsonlite(>= 1.5)
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true

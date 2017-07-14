@@ -26,7 +26,9 @@ envision_connect <- function(baseUrl,secretKey) {
 
   res <- httr::content(doc,useInternalNodes=T)
 
-  res
+  data <- jsonlite::fromJSON(res)
+
+  data
 }
 
 
