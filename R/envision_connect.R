@@ -60,6 +60,7 @@ getDatasourceConnection <- function(baseUrl,secretKey) {
   } else {
     stop("Connect data of the datasource not available")
   }
+  data
 }
 
 getDriverDetails <- function(connect_data) {
