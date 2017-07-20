@@ -42,7 +42,7 @@ getDataSourceMetaData <- function(baseUrl,secretKey) {
 #'                    obtained from the App
 #' @export
 getDatasourceConnection <- function(baseUrl,secretKey) {
-  
+
   data <- getDataSourceMetaData(baseUrl,secretKey)
   if (!is.null(data$connect_data)) {
     connect_data <- data$connect_data
@@ -56,36 +56,37 @@ getDatasourceConnection <- function(baseUrl,secretKey) {
     data <- NULL
     data$ftable <- ftable
     data$jdbc <- conn
-    
+
   } else {
     stop("Connect data of the datasource not available")
   }
 }
 
-getDriverClass <- function(connect_data) {
+getDriverDetails <- function(connect_data) {
   if(is.null(connect_data$engine_type))
     stop("Engine Type not found")
   engineType <- connect_data$engine_type
-  
+
   if(is.null(connect_data$hostname))
     stop("Host Name not found")
   host_port <- connect_data$hostname
-  
+
   if(!is.null(connect_data$port))
     host_port <- paste(host_port,connect_data$port, sep=":")
-  
-  if(!is.null(connect_data$dbName))
+
+  if(is.null(connect_data$dbName))
     stop("DBName not found")
-    
-  jdbcDetails <- NULL  
-  if(toupper(engineType) == "MONETDB") {
+
+  jdbcDetails <- NULL
+  if(toupper(engineType) == "MONETDB" || toupper(engineType) == "MEMORY") {
     jdbcDetails$driverClass <- "nl.cwi.monetdb.jdbc.MonetDriver"
     jdbcDetails$driver <- "monetdb-jdbc-2.8.jar"
-    jdbcDetails$connString <- paste("jdbc:monetdb://",host_port,"/",connect_data$dbName)
-     
+    jdbcDetails$connString <- paste("jdbc:monetdb://",host_port,"/",connect_data$dbName,sep = "")
+
   }else if (toupper(engineType) == "MYSQL") {
-    
+
   }
-  
+
   jdbcDetails
 }
+
