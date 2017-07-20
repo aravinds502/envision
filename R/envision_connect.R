@@ -51,7 +51,7 @@ getDatasourceConnection <- function(baseUrl,secretKey) {
       stop("Unable to create JDBC connection- required info missing")
     jdbcDriver <- RJDBC::JDBC(driverClass=jdbcDetails$driverClass,
                               classPath=system.file("extdata",jdbcDetails$driver, package = "envision"))
-    conn <- RJDBC::dbConnect(drv, jdbcDetails$connString, connect_data$username, connect_data$password)
+    conn <- RJDBC::dbConnect(jdbcDriver, jdbcDetails$connString, connect_data$username, connect_data$password)
     ftable <- connect_data$ftable
     data <- NULL
     data$ftable <- ftable
