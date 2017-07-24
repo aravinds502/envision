@@ -39,7 +39,6 @@ doHttpCall <- function(baseUrl,secretKey,identifier) {
 
   ua      <- "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0"
 
-
   doc <- httr::POST(baseUrl,
                     query = list(dstoken=secretKey),
                     httr::user_agent(ua))

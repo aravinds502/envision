@@ -2,3 +2,4 @@
 
 export(getDataSourceMetaData)
 export(getDatasourceConnection)
+export(reload_dataSource)
