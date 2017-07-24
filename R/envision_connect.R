@@ -10,20 +10,39 @@
 #' @export
 getDataSourceMetaData <- function(baseUrl,secretKey) {
 
+  res <- doHttpCall(baseUrl,secretKey,"dsExtConnect")
+  res
+}
+
+#'Reload Datasource
+#'
+#' Function to refresh the datasource in envision, which reflects
+#' the latest update
+#'
+#' @param baseUrl - Envision server URL
+#' @param secretKey - Secret key for the datasource
+#'                    obtained from the App
+#' @export
+reload_dataSource <- function(baseUrl,secretKey) {
+  res <- doHttpCall(baseUrl,secretKey,"reloadext")
+  res
+}
+
+doHttpCall <- function(baseUrl,secretKey,identifier) {
   url_length <- stringr::str_length(baseUrl)
 
   if(substr(baseUrl,url_length,url_length) == "/") {
     baseUrl <- substr(baseUrl,0,url_length-1)
   }
 
-  baseUrl <- paste(baseUrl,"/datasource.do?action=dsExtConnect", sep="")
+  baseUrl <- paste(baseUrl,"/datasource.do?action=",identifier, sep="")
 
   ua      <- "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0"
 
 
   doc <- httr::POST(baseUrl,
-              query = list(dstoken=secretKey),
-              httr::user_agent(ua))
+                    query = list(dstoken=secretKey),
+                    httr::user_agent(ua))
   res <- httr::content(doc,useInternalNodes=T)
 
   data <- jsonlite::fromJSON(res)
@@ -79,15 +98,53 @@ getDriverDetails <- function(connect_data) {
     stop("DBName not found")
 
   jdbcDetails <- NULL
-  if(toupper(engineType) == "MONETDB" || toupper(engineType) == "MEMORY") {
+  if(toupper(engineType) == "MONETDB") {
     jdbcDetails$driverClass <- "nl.cwi.monetdb.jdbc.MonetDriver"
     jdbcDetails$driver <- "monetdb-jdbc-2.8.jar"
     jdbcDetails$connString <- paste("jdbc:monetdb://",host_port,"/",connect_data$dbName,sep = "")
 
   }else if (toupper(engineType) == "MYSQL") {
+    jdbcDetails$driverClass <- "com.mysql.jdbc.Driver"
+    jdbcDetails$driver <- "mysql-connector-java-5.1.21-bin"
+    jdbcDetails$connString <- paste("jdbc:mysql://",host_port,"/",connect_data$dbName,sep = "")
 
+  }else if (toupper(engineType) == "POSTGRESQL" || toupper(engineType) == "REDSHIFT") {
+    jdbcDetails$driverClass <- "org.postgresql.Driver"
+    jdbcDetails$driver <- "postgresql-9.2-1002.jdbc4.jar"
+    jdbcDetails$connString <- paste("jdbc:postgresql://",host_port,"/",connect_data$dbName,sep = "")
+
+  }else if (toupper(engineType) == "SQLSERVER") {
+    jdbcDetails$driverClass <- "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+    jdbcDetails$driver <- "sqljdbc4.jar"
+    jdbcDetails$connString <- paste("jdbc:sqlserver://",getSQLServerConnString(connect_data), sep="")
+
+  }else if (toupper(engineType) == "ORACLE") {
+    jdbcDetails$driverClass <- "oracle.jdbc.driver.OracleDriver"
+    jdbcDetails$driver <- "ojdbc6.jar"
+    jdbcDetails$connString <- paste("jdbc:oracle:thin:@",host_port,"/",connect_data$dbName,sep = "")
+
+  }else if (toupper(engineType) == "SUNDB") {
+    jdbcDetails$driverClass <- "sunje.sundb.jdbc.SundbDriver"
+    jdbcDetails$driver <- "sundb6.jar"
+    jdbcDetails$connString <- paste("jdbc:sundb://",host_port,"/",connect_data$dbName,sep = "")
+
+  }else if (toupper(engineType) == "MARIADB") {
+    jdbcDetails$driverClass <- "org.mariadb.jdbc.Driver"
+    jdbcDetails$driver <- "mariadb-java-client-1.3.3.jar"
+    jdbcDetails$connString <- paste("jdbc:mariadb://",host_port,"/",connect_data$dbName,sep = "")
   }
 
   jdbcDetails
 }
+
+getSQLServerConnString <- function(connect_data) {
+  conn_string <- paste(connect_data$hostname,connect_data$dbName, sep="\\")
+  if(!is.null(connect_data$port))
+    conn_string <- paste(conn_string,connect_data$port,sep=":")
+
+  conn_string
+}
+
+
+
 
