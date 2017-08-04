@@ -279,7 +279,7 @@ getDatasourceConnection <- function(baseUrl,token) {
     #decrypt password
     passWord <- character()
     encrypt <- strsplit(connect_data$password,"")[[1]]
-    for(i in 1 : stringr::str_length(en)) {
+    for(i in 1 : stringr::str_length(connect_data$password)) {
       passWord[[i]] <- chr(asc(encrypt[[i]]) - 4)
     }
     decrypt <- paste(passWord,collapse = "")
