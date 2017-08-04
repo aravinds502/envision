@@ -4,12 +4,12 @@
 \alias{getDataSourceMetaData}
 \title{Get DataSource Meta data}
 \usage{
-getDataSourceMetaData(baseUrl, secretKey)
+getDataSourceMetaData(baseUrl, token)
 }
 \arguments{
 \item{baseUrl}{- Envision server URL}
 
-\item{secretKey}{- Secret key for the datasource
+\item{token}{- token for the datasource
 obtained from the App}
 }
 \description{

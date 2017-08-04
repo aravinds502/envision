@@ -4,12 +4,12 @@
 \alias{getDatasourceConnection}
 \title{Get DataSource Connection}
 \usage{
-getDatasourceConnection(baseUrl, secretKey)
+getDatasourceConnection(baseUrl, token)
 }
 \arguments{
 \item{baseUrl}{- Envision server URL}
 
-\item{secretKey}{- Secret key for the datasource
+\item{token}{- token for the datasource
 obtained from the App}
 }
 \description{
