@@ -19,11 +19,14 @@ carriots.analytics.connect <- function(url, token) {
       factTable = "",
       jdbc = "",
       columns = "",
+      engineType = "",
+      ba2DBTypes = "",
       q = "",
-      initialize = function(factTable, jdbc, columns,qVar) {
+      initialize = function(factTable, jdbc, columns,ba2DBTypes,qVar) {
         self$factTable <- factTable
         self$jdbc <- jdbc
         self$columns <- columns
+        self$ba2DBTypes <- ba2DBTypes
         self$q <- qVar
       },
 
@@ -42,34 +45,49 @@ carriots.analytics.connect <- function(url, token) {
       conn_data = ''
     ),
     public = list (
+      dataTypes = '',
       initialize = function(conn_data) {
         private$conn_data <- conn_data
+        self$dataTypes <- list(STRING = "STRING", NUMERIC = "NUMERIC", INTEGER = "INTEGER",
+                               DATE = "DATE", DATETIME = "DATETIME", TIME = "TIME")
       },
-      load = function(...,limit=NA) {
-        temp <- as.list(match.call())
-        colSelected <- temp[ - which(names(temp) == "limit")]
-        colSelected <- colSelected[-1]
-        query <- paste("SELECT ",getColumns(colSelected,private$conn_data), sep="");
+
+      load = function(columns=NULL) {
+        query <- paste("SELECT ",getColumns(colSelected=columns,private$conn_data), sep="");
         query <- paste(query,"FROM",private$conn_data$factTable)
-        if(!is.null(limit) & !is.na(limit) & limit > 0)
-          query <- paste(query, "LIMIT",limit)
+        # if(!is.null(limit) & !is.na(limit) & limit > 0)
+        #   query <- paste(query, "LIMIT",limit)
 
         df <- RJDBC::dbGetQuery(private$conn_data$jdbc,query)
         df
       },
 
       update = function(where=NULL,set=NULL) {
-          if(is.null(set))
-            stop("set clause elements are empty")
+          if(is.null(set) || is.null(where))
+            stop("where/set clause elements are empty")
 
-        setString <- paste("SET",buildSetClause(private$conn_data,set))
-        whereString <- paste("WHERE",buildWhereClause(private$conn_data,where))
-
-        query <- paste("UPDATE",private$conn_data$factTable,setString,whereString)
+        setColumn <- names(set)[[1]]
+        query <- buildQuery(private$conn_data,where,set)
+        query <- paste("UPDATE",private$conn_data$factTable, "SET", setColumn , "=", query)
 
         print(query)
         RJDBC::dbSendUpdate(private$conn_data$jdbc,query)
 
+      },
+
+      updateDataFrame = function(df=NULL,colName) {
+
+        if(is.na(df) || missing(colName))
+          stop("Required parameters were missing")
+
+        if(!(colName %in% colnames(df)))
+          stop("Specified column doesnt exists in the data frame")
+
+        myvars <- c(colName)
+        set <- df(myvars)
+
+        where <- where[,  !(names(where) %in% c(colName))]
+        self$update(where=where,set=set)
       },
 
       getColumnNames = function() {
@@ -77,12 +95,16 @@ carriots.analytics.connect <- function(url, token) {
         cols
       },
 
-      addColumn = function(name=NULL,type=NULL,default = NULL) {
-        alterQuery <- "ALTER TABLE"
+      addColumn = function(name=NULL, type =NULL,default = NULL) {
+
         if(is.null(name) | is.null(type))
           stop("Column name or type is empty")
 
-        alterQuery <- paste(alterQuery,private$conn_data$factTable,"ADD",name,type)
+        if(!(type %in% names(private$conn_data$ba2DBTypes)))
+          stop(paste("Invalid Type selected","-",type))
+
+        alterQuery <- "ALTER TABLE"
+        alterQuery <- paste(alterQuery,private$conn_data$factTable,"ADD COLUMN",private$conn_data$quot(name),private$conn_data$ba2DBTypes[[type]])
         if(!is.null(default)) {
           alterQuery <- paste(alterQuery,"NOT NULL DEFAULT")
           if(is.numeric(default))
@@ -106,11 +128,13 @@ carriots.analytics.connect <- function(url, token) {
   factTable <- data$ftable
   columns <- data$columns
   quot <- data$quot
+  ba2DBTypes <- getDataTypes(data$engineType)
 
-  connect_data <- BAConnectionData$new(factTable, jdbc, columns,quot)
+  connect_data <- BAConnectionData$new(factTable, jdbc, columns,ba2DBTypes,quot)
   conn <- BAConnection$new(connect_data)
   conn
 }
+
 
 #################################################################################
 #' Method to load the table data
@@ -118,13 +142,12 @@ carriots.analytics.connect <- function(url, token) {
 #' User can pass the selected column names as the data frame returned by this
 #' method will have only the selected columns
 #'
-#' @param ... - column names
-#' @param limit - limit the records in the data frame
+#' @param columns - vector of selected column names
 #' @param conn  - BAConnection object obtained from connect API
 #'
 #'@export
-carriots.analytics.load = function(...,limit=NA,conn = NULL) {
-  conn$load(...,limit=limit)
+carriots.analytics.load = function(columns = columns,conn = NULL) {
+  conn$load(columns = columns)
 }
 
 #################################################################################
@@ -133,18 +156,6 @@ carriots.analytics.load = function(...,limit=NA,conn = NULL) {
 #' Update the table with the values provided in the data frame. Below is the
 #' structure of the data frame for WhereClause
 #'
-#'   column operator value relate
-#'   prod        =    abc  AND
-#'   stat        =     1   AND
-#'   score       =     2   AND (last relation in the frame Will be ignored)
-#'
-#'   DataFrame for Set clause
-#'
-#'   column value
-#'   prod     abc
-#'   stat     1
-#'   score    2
-#'
 #'  @param where - DataFrame for where Clause
 #'  @param set -  DataFrame for Set Clause
 #'  @param conn - BAConnection object obtained from connect API
@@ -152,6 +163,20 @@ carriots.analytics.load = function(...,limit=NA,conn = NULL) {
 #'@export
 carriots.analytics.update = function(where=NULL,set=NULL,conn = NULL) {
   conn$update(where = where, set =set)
+}
+
+#################################################################################
+#' Method to add a new column to the table
+#'
+
+#'
+#'  @param colName - Names of the new column
+#'  @param type -  Type of the column( supported types con$dataTypes)
+#'  @param conn - BAConnection object obtained from connect API
+#'
+#'@export
+carriots.analytics.addColumn = function(colname=NULL,dataType=NULL, conn = NULL) {
+  conn$update(colname=colname,dataType=dataType)
 }
 
 ###############################################################################
@@ -175,6 +200,57 @@ carriots.analytics.reload_dataSource <- function(baseUrl,secretKey) {
 asc <- function(x) { strtoi(charToRaw(x),16L) }
 
 chr <- function(n) { rawToChar(as.raw(n)) }
+
+#supported data types - ba2DBTypes
+
+getDataTypes <- function(engineType) {
+  dataTypes <- list(STRING = "VARCHAR(256)", NUMERIC = "DOUBLE", INTEGER = "INT",
+                    DATE = "DATE", DATETIME = "TIMESTAMP", TIME = "TIME")
+
+  if(toupper(engineType) == "ORACLE") {
+    dataTypes$NUMERIC = "NUMBER(20,4)"
+    dataTypes$INTEGER = "NUMBER(20)"
+  }
+  else if(toupper(engineType) == "MYSQL") {
+    dataTypes$NUMERIC = "DECIMAL(20,4)"
+    dataTypes$TIMESTAMP = "DATETIME"
+  }
+  else if(toupper(engineType) == "REDSHIFT") {
+    dataTypes$NUMERIC = "DOUBLE PRECISION"
+    dataTypes$INTEGER = "BIGINT"
+  }
+
+  dataTypes
+}
+
+buildQuery <- function(con,where,set) {
+  cols <- con$columns
+  query <- "CASE"
+  condLength <- length(where)
+  nConds <- nrow(where)
+  whereHeader <- names(where)
+  setHeader <- names(set)
+  if(nConds != nrow(set))
+    stop("DataFrames length where mismatching- unable to update the table")
+  for(i in 1:nConds) {
+    query <- paste(query, "WHEN")
+    for(j in 1:condLength) {
+      val <- where[[whereHeader[[j]]]][[i]]
+      if(is.null(val) | is.na(val))
+        query <- paste(query," ISNULL(",con$quot(whereHeader[[j]]),")",sep = "")
+      else{
+        query <- paste(query,con$quot(whereHeader[[j]]),"=")
+        query <- paste(query," '",val,"' ",sep = "")
+      }
+      if(j < condLength)
+        query <- paste(query, "AND")
+    }
+    query <- paste(query,"THEN",set[[setHeader[[1]]]][[i]])
+  }
+
+  query <- paste(query,"END")
+
+}
 
 buildSetClause <- function(con,set) {
 
@@ -223,7 +299,7 @@ buildWhereClause <- function(con,where) {
 
 }
 
-getColumns <- function(colSelected,conn) {
+getColumns <- function(colSelected=NULL,conn) {
   cols <- conn$columns
   colString <- ""
   if(!is.null(colSelected) &  length(colSelected) > 0){
@@ -298,6 +374,7 @@ getDatasourceConnection <- function(baseUrl,token) {
     data$jdbc <- conn
     data$quot <- jdbcDetails$quot
     data$columns <- connect_data$columns
+    data$engineType <- connect_data$engine_type
 
   } else {
     stop("Connect data of the datasource not available")

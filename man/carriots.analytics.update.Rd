@@ -11,18 +11,6 @@ Update the table with the values provided in the data frame. Below is the
 structure of the data frame for WhereClause
 }
 \details{
-column operator value relate
-  prod        =    abc  AND
-  stat        =     1   AND
-  score       =     2   AND (last relation in the frame Will be ignored)
-
-DataFrame for Set clause
-
-column value
-  prod     abc
-  stat     1
-  score    2
-
 @param where - DataFrame for where Clause
  @param set -  DataFrame for Set Clause
  @param conn - BAConnection object obtained from connect API

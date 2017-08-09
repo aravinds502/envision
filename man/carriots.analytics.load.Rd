@@ -4,12 +4,10 @@
 \alias{carriots.analytics.load}
 \title{Method to load the table data}
 \usage{
-carriots.analytics.load(..., limit = NA, conn = NULL)
+carriots.analytics.load(columns = columns, conn = NULL)
 }
 \arguments{
-\item{...}{- column names}
-
-\item{limit}{- limit the records in the data frame}
+\item{columns}{- vector of selected column names}
 
 \item{conn}{- BAConnection object obtained from connect API}
 }
