@@ -166,6 +166,21 @@ carriots.analytics.update = function(where=NULL,set=NULL,conn = NULL) {
 }
 
 #################################################################################
+#' Method to update the data in the table
+#'
+#' Update the table with the values provided in the data frame. Below is the
+#' structure of the data frame for WhereClause
+#'
+#'  @param dataframe - DataFrame for where Clause
+#'  @param colname -  colname in dataframe which is to be added in to table
+#'  @param conn - BAConnection object obtained from connect API
+#'
+#'@export
+carriots.analytics.updateFrame = function(dataframe=NULL,colname=NULL,conn = NULL) {
+  conn$updateDataFrame(df=dataframe,colname)
+}
+
+#################################################################################
 #' Method to add a new column to the table
 #'
 
