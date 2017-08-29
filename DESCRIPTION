@@ -9,7 +9,7 @@ Imports:
 		stringi(>= 1.1.5),
 		httr(>= 1.2.1),
 		jsonlite(>= 1.5),
-		RJDBC(>= 0.2-5)
+		RJDBC(>= 0.2-5),
 		DBI(>= 0.6-1),
 		base64enc(>= 0.1-3)
 License: What license is it under?
