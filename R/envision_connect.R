@@ -22,12 +22,14 @@ carriots.analytics.connect <- function(url, token) {
       engineType = "",
       ba2DBTypes = "",
       q = "",
-      initialize = function(factTable, jdbc, columns,ba2DBTypes,qVar) {
+      username = "",
+      initialize = function(factTable, jdbc, columns,ba2DBTypes,qVar,uname) {
         self$factTable <- factTable
         self$jdbc <- jdbc
         self$columns <- columns
         self$ba2DBTypes <- ba2DBTypes
         self$q <- qVar
+        self$username <- uname
       },
 
       quot = function(attribute) {
@@ -42,7 +44,106 @@ carriots.analytics.connect <- function(url, token) {
   BAConnection <- R6::R6Class(
     "BAConnection",
     private = list(
-      conn_data = ''
+      conn_data = '',
+      createTable = function(df,tableName,colName,type) {
+        if(is.null(tableName))
+          stop("Invalid table name")
+
+        md5table <- digest::digest(tableName,"md5",serialize = FALSE)
+        temp <- unlist(strsplit(private$conn_data$factTable,split = "[.]"))
+        if(length(temp) > 1)
+         md5table <- paste(temp[1],".",private$conn_data$quot(md5table),sep="")
+        else
+          md5table <- private$conn_data$quot(md5table)
+
+        private$dropIfExists(md5table)
+
+        colNames <- colnames(df)
+        colNames <- colNames[colNames!=colName]
+
+        if(!all(colNames %in% self$getColumnNames()))
+          stop("Data Frame has more than one new column compared to fact table")
+
+        query <- "CREATE TABLE"
+        query <- paste(query,md5table,"AS")
+        colString <- paste(private$conn_data$quot(colNames),",",collapse = "")
+        colString <- substr(colString,1,nchar(colString)-1)
+
+        orgQuery <- paste("(","SELECT",colString,"FROM",private$conn_data$factTable,"WHERE 1=2",")")
+        query <- paste(query,orgQuery)
+
+        print(query)
+        RJDBC::dbSendUpdate(private$conn_data$jdbc,query)
+
+        #Add a column first
+        private$addColumn(md5table,name=colName,type=type)
+
+        md5table
+
+
+      },
+      addColumn = function(md5table,name=NULL, type =NULL,default = NULL) {
+
+        if(is.null(name) | is.null(type))
+          stop("Column name or type is empty")
+
+        if(!(type %in% names(private$conn_data$ba2DBTypes)))
+          stop(paste("Invalid Type selected","-",type))
+
+        alterQuery <- "ALTER TABLE"
+        alterQuery <- paste(alterQuery,md5table,"ADD COLUMN",private$conn_data$quot(name),private$conn_data$ba2DBTypes[[type]])
+        if(!is.null(default)) {
+          alterQuery <- paste(alterQuery,"NOT NULL DEFAULT")
+          if(is.numeric(default))
+            alterQuery <- paste(alterQuery," (",default,") ",sep="")
+          else
+            alterQuery <- paste(alterQuery," '",default,"' ",sep="")
+        }
+        print(alterQuery)
+        RJDBC::dbSendUpdate(private$conn_data$jdbc,alterQuery)
+      },
+
+      insertData = function(tablename,dataframe) {
+
+        if(nrow(dataframe) < 1)
+          stop("No data available in dataframe")
+
+        query <- "INSERT INTO"
+        query <- paste(query,tablename)
+        colNames <- paste("\"",colnames(dataframe),"\"",sep="")
+        query <- paste(query,"(",paste(colNames,collapse=","),")")
+
+        query <- paste(query, "VALUES")
+
+        values <- ""
+
+        for(i in 1:nrow(dataframe)) {
+          if( i > 1) values <- paste(values,",")
+          row <- dataframe[i,]
+          values <- paste(values,paste("(",paste(paste("'",row,"'",sep=""),collapse=","),")",sep = ""))
+        }
+
+        query <- paste(query,values)
+        print(query)
+
+        RJDBC::dbSendUpdate(private$conn_data$jdbc,query)
+
+      },
+
+      dropIfExists = function(tableName) {
+        t <- tableName
+        temp <- unlist(strsplit(t,split = "[.]"))
+        if(length(temp) > 1) {
+          RJDBC::dbSendUpdate(private$conn_data$jdbc, paste("set schema",temp[1]))
+          t <- temp[2]
+        }
+
+        t <- gsub("\"","",t)
+
+        if(RJDBC::dbExistsTable(private$conn_data$jdbc,t)) {
+          RJDBC::dbRemoveTable(private$conn_data$jdbc,DBI::dbQuoteIdentifier(private$conn_data$jdbc,t))
+        }
+      }
     ),
     public = list (
       dataTypes = '',
@@ -59,23 +160,17 @@ carriots.analytics.connect <- function(url, token) {
         #   query <- paste(query, "LIMIT",limit)
 
         df <- RJDBC::dbGetQuery(private$conn_data$jdbc,query)
+        col2Label <- getColumn2Label(private$conn_data$columns)
+        orgNames <- names(df)
+        for(i in 1:length(orgNames)) {
+          names(df)[i] <- col2Label[names(df)[i]]
+        }
+
         df
       },
 
-      update = function(where=NULL,set=NULL) {
-          if(is.null(set) || is.null(where))
-            stop("where/set clause elements are empty")
 
-        setColumn <- names(set)[[1]]
-        query <- buildQuery(private$conn_data,where,set)
-        query <- paste("UPDATE",private$conn_data$factTable, "SET", setColumn , "=", query)
-
-        print(query)
-        RJDBC::dbSendUpdate(private$conn_data$jdbc,query)
-
-      },
-
-      updateDataFrame = function(df=NULL,colName) {
+      updateDataFrame = function(df=NULL,colName=NULL,type=NULL) {
 
         if(is.na(df) || missing(colName))
           stop("Required parameters were missing")
@@ -83,38 +178,26 @@ carriots.analytics.connect <- function(url, token) {
         if(!(colName %in% colnames(df)))
           stop("Specified column doesnt exists in the data frame")
 
-        myvars <- c(colName)
-        set <- df(myvars)
+        #create a duplicate tabel with additional column, named as MD5(<FACTTABLE>_<COLNAME>_<USERNAME>)
 
-        where <- where[,  !(names(where) %in% c(colName))]
-        self$update(where=where,set=set)
+        tableName <- paste(private$conn_data$factTable,colName,private$conn_data$username, sep="_")
+
+        md5Table <- private$createTable(df,tableName,colName,type)
+
+        label2Col <-private$conn_data$columns
+        orgNames <- names(df)
+        for(i in 1:length(orgNames)) {
+          if(orgNames[i]!=colName)
+          names(df)[i] <- label2Col[orgNames[i]]
+        }
+
+       #insert in to new table
+        private$insertData(md5Table,df)
       },
 
       getColumnNames = function() {
         cols <- names(private$conn_data$columns)
         cols
-      },
-
-      addColumn = function(name=NULL, type =NULL,default = NULL) {
-
-        if(is.null(name) | is.null(type))
-          stop("Column name or type is empty")
-
-        if(!(type %in% names(private$conn_data$ba2DBTypes)))
-          stop(paste("Invalid Type selected","-",type))
-
-        alterQuery <- "ALTER TABLE"
-        alterQuery <- paste(alterQuery,private$conn_data$factTable,"ADD COLUMN",private$conn_data$quot(name),private$conn_data$ba2DBTypes[[type]])
-        if(!is.null(default)) {
-          alterQuery <- paste(alterQuery,"NOT NULL DEFAULT")
-          if(is.numeric(default))
-            alterQuery <- paste(alterQuery," (",default,") ",sep="")
-          else
-            alterQuery <- paste(alterQuery," '",default,"' ",sep="")
-        }
-        print(alterQuery)
-        RJDBC::dbSendUpdate(private$conn_data$jdbc,alterQuery)
-
       }
     )
   )
@@ -130,7 +213,7 @@ carriots.analytics.connect <- function(url, token) {
   quot <- data$quot
   ba2DBTypes <- getDataTypes(data$engineType)
 
-  connect_data <- BAConnectionData$new(factTable, jdbc, columns,ba2DBTypes,quot)
+  connect_data <- BAConnectionData$new(factTable, jdbc, columns,ba2DBTypes,quot,data$username)
   conn <- BAConnection$new(connect_data)
   conn
 }
@@ -156,43 +239,16 @@ carriots.analytics.load = function(columns = columns,conn = NULL) {
 #' Update the table with the values provided in the data frame. Below is the
 #' structure of the data frame for WhereClause
 #'
-#'  @param where - DataFrame for where Clause
-#'  @param set -  DataFrame for Set Clause
 #'  @param conn - BAConnection object obtained from connect API
-#'
-#'@export
-carriots.analytics.update = function(where=NULL,set=NULL,conn = NULL) {
-  conn$update(where = where, set =set)
-}
-
-#################################################################################
-#' Method to update the data in the table
-#'
-#' Update the table with the values provided in the data frame. Below is the
-#' structure of the data frame for WhereClause
-#'
 #'  @param dataframe - DataFrame for where Clause
 #'  @param colname -  colname in dataframe which is to be added in to table
-#'  @param conn - BAConnection object obtained from connect API
+#'  @param type - Data type of column, supports specific types  available in the conn$dataTypes list
 #'
 #'@export
-carriots.analytics.updateFrame = function(dataframe=NULL,colname=NULL,conn = NULL) {
-  conn$updateDataFrame(df=dataframe,colname)
+carriots.analytics.updateFrame = function(conn = NULL,dataframe=NULL,colname=NULL, type = type) {
+  conn$updateDataFrame(df=dataframe,colName=colname,type=type)
 }
 
-#################################################################################
-#' Method to add a new column to the table
-#'
-
-#'
-#'  @param colName - Names of the new column
-#'  @param type -  Type of the column( supported types con$dataTypes)
-#'  @param conn - BAConnection object obtained from connect API
-#'
-#'@export
-carriots.analytics.addColumn = function(colname=NULL,dataType=NULL, conn = NULL) {
-  conn$update(colname=colname,dataType=dataType)
-}
 
 ###############################################################################
 #'Reload Datasource
@@ -238,82 +294,6 @@ getDataTypes <- function(engineType) {
   dataTypes
 }
 
-buildQuery <- function(con,where,set) {
-  cols <- con$columns
-  query <- "CASE"
-  condLength <- length(where)
-  nConds <- nrow(where)
-  whereHeader <- names(where)
-  setHeader <- names(set)
-  if(nConds != nrow(set))
-    stop("DataFrames length where mismatching- unable to update the table")
-  for(i in 1:nConds) {
-    query <- paste(query, "WHEN")
-    for(j in 1:condLength) {
-      val <- where[[whereHeader[[j]]]][[i]]
-      if(is.null(val) | is.na(val))
-        query <- paste(query," ISNULL(",con$quot(whereHeader[[j]]),")",sep = "")
-      else{
-        query <- paste(query,con$quot(whereHeader[[j]]),"=")
-        query <- paste(query," '",val,"' ",sep = "")
-      }
-      if(j < condLength)
-        query <- paste(query, "AND")
-    }
-    query <- paste(query,"THEN",set[[setHeader[[1]]]][[i]])
-  }
-
-  query <- paste(query,"END")
-
-}
-
-buildSetClause <- function(con,set) {
-
-  setClause <- ""
-
-  sCols <- set$column
-  sVals <- set$value
-
-  colLength <- length(sCols)
-
-  if(is.null(sCols) | is.null(sVals))
-    stop("Set clause:Invalid")
-
-  for(i in 1:colLength) {
-    if(i > 1)
-      setClause <- paste(setClause,",")
-
-    setClause <- paste(setClause, con$quot(sCols[i]),"=")
-    setClause <- paste(setClause, " '",sVals[i],"' ", sep = "")
-
-  }
-
-  setClause
-
-}
-
-buildWhereClause <- function(con,where) {
-  whereClause <- ""
-
-  if(!is.null(where)) {
-    wCols <- where$column
-    wOperators <- where$operator
-    wVals <- where$value
-    wRelate <- where$relate
-
-    colLength <- length(wCols)
-
-    for(i in 1:colLength) {
-      whereClause <- paste(whereClause,  con$quot(wCols[i])," ",wOperators[i]," '",wVals[i],"' ", sep = "")
-      if(i < colLength)
-        whereClause <- paste(whereClause,wRelate[i],"")
-
-    }
-  }
-  whereClause
-
-}
-
 getColumns <- function(colSelected=NULL,conn) {
   cols <- conn$columns
   colString <- ""
@@ -332,6 +312,18 @@ getColumns <- function(colSelected=NULL,conn) {
     colString <- "*"
 
   colString
+}
+
+getColumn2Label <- function(colList) {
+  column <- paste(colList)
+  labels <- names(colList)
+
+  col2Label <- list()
+  for(i in 1:length(labels))
+    col2Label[column[i]] = labels[i]
+
+  col2Label
+
 }
 
 #'Get DataSource Meta data
@@ -386,6 +378,7 @@ getDatasourceConnection <- function(baseUrl,token) {
     ftable <- connect_data$ftable
     data <- NULL
     data$ftable <- ftable
+    data$username <- connect_data$user_login_name
     data$jdbc <- conn
     data$quot <- jdbcDetails$quot
     data$columns <- connect_data$columns
