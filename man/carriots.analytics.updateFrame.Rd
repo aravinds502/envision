@@ -4,15 +4,16 @@
 \alias{carriots.analytics.updateFrame}
 \title{Method to update the data in the table}
 \usage{
-carriots.analytics.updateFrame(dataframe = NULL, colname = NULL,
-  conn = NULL)
+carriots.analytics.updateFrame(conn = NULL, dataframe = NULL,
+  colname = NULL, type = type)
 }
 \description{
 Update the table with the values provided in the data frame. Below is the
 structure of the data frame for WhereClause
 }
 \details{
-@param dataframe - DataFrame for where Clause
+@param conn - BAConnection object obtained from connect API
+ @param dataframe - DataFrame for where Clause
  @param colname -  colname in dataframe which is to be added in to table
- @param conn - BAConnection object obtained from connect API
+ @param type - Data type of column, supports specific types  available in the conn$dataTypes list
 }

@@ -266,8 +266,8 @@ carriots.analytics.reload_dataSource <- function(baseUrl,secretKey) {
 }
 
 ##################################################################################
-#' UTILITIES
-#'
+# UTILITIES
+##################################################################################
 asc <- function(x) { strtoi(charToRaw(x),16L) }
 
 chr <- function(n) { rawToChar(as.raw(n)) }
@@ -326,6 +326,7 @@ getColumn2Label <- function(colList) {
 
 }
 
+#-------------------------------------------------------------
 #'Get DataSource Meta data
 #'
 #' This is a function to obtain the meta data of a
@@ -335,12 +336,14 @@ getColumn2Label <- function(colList) {
 #' @param baseUrl - Envision server URL
 #' @param token - token for the datasource
 #'                    obtained from the App
+#--------------------------------------------------------------
 getDataSourceMetaData <- function(baseUrl,token) {
 
   res <- doHttpCall(baseUrl,token,"dsExtConnect")
   res
 }
 
+#-----------------------------------------------------------------------
 #'Get DataSource Connection
 #'
 #' This is a function to obtain JDBC connection to a
@@ -350,6 +353,7 @@ getDataSourceMetaData <- function(baseUrl,token) {
 #' @param baseUrl - Envision server URL
 #' @param token - token for the datasource
 #'                    obtained from the App
+#-----------------------------------------------------------------------
 getDatasourceConnection <- function(baseUrl,token) {
 
   data <- getDataSourceMetaData(baseUrl,token)
