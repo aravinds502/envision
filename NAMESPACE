@@ -2,5 +2,6 @@
 
 export(carriots.analytics.connect)
 export(carriots.analytics.load)
+export(carriots.analytics.metadata)
 export(carriots.analytics.reload_dataSource)
 export(carriots.analytics.updateFrame)

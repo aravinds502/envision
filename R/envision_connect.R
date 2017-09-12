@@ -1,4 +1,43 @@
-
+###############################################################
+#' set some meta data datasource connection
+#'
+#'
+#' @param url - Envision server URL
+#' @param token - Secret key for the datasource
+#'                    obtained from the App
+#' @param isParameterized - TRUE/FALSE based on the module                  
+#' @export
+carriots.analytics.metadata <- function(url, token, isParameterized) {
+  # //////////////////////////////////////////////////////
+  BAMetaData <- R6::R6Class(
+    "BAMetaData",
+    private = list (
+      url = "",
+      token = "",
+      parameterized = FALSE
+    ),
+    
+    public = list(
+      initialize = function(uRL,tkn,flag) {
+        private$url <- uRL
+        private$token <- tkn
+        private$parameterized <- flag
+      },
+      getURL = function() {
+        private$url
+      },
+      getToken = function() {
+        private$token
+      },
+      isParameterized = function() {
+        private$parameterized
+      }
+    )
+  )
+  
+  meta <- BAMetaData$new(url, token, isParameterized)
+  meta
+}
 ###############################################################
 #'Get datasource connection
 #'
@@ -10,7 +49,7 @@
 #' @param secretKey - Secret key for the datasource
 #'                    obtained from the App
 #' @export
-carriots.analytics.connect <- function(url, token) {
+carriots.analytics.connect <- function() {
 
   # //////////////////////////////////////////////////////
   BAConnectionData <- R6::R6Class(
@@ -178,9 +217,12 @@ carriots.analytics.connect <- function(url, token) {
         if(!(colName %in% colnames(df)))
           stop("Specified column doesnt exists in the data frame")
 
-        #create a duplicate tabel with additional column, named as MD5(<FACTTABLE>_<COLNAME>_<USERNAME>)
-
-        tableName <- paste(private$conn_data$factTable,colName,private$conn_data$username, sep="_")
+        #create a duplicate tabel with additional column, named as MD5(<FACTTABLE>_<COLNAME>)
+        tableName <- paste(private$conn_data$factTable,colName, sep="_")
+        meta <- .GlobalEnv[[".CarriotsMeta"]]
+        # If module is parameterized append the userName as well _<USERNAME> to tableName
+        if(meta$isParameterized())
+          tableName <- paste(tableName,private$conn_data$username, sep="_")
 
         md5Table <- private$createTable(df,tableName,colName,type)
 
@@ -205,7 +247,8 @@ carriots.analytics.connect <- function(url, token) {
   # //////////////////////////////////////////////////////
   # Call the envision REST API to get the connection data
   # Based on the engine type, get the appropriate JDBC driver
-  data <- getDatasourceConnection(url,token)
+  meta <- .GlobalEnv[[".CarriotsMeta"]]
+  data <- getDatasourceConnection(meta$getURL(),meta$getToken())
 
   jdbc <- data$jdbc
   factTable <- data$ftable
