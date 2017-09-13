@@ -4,7 +4,7 @@
 \alias{carriots.analytics.connect}
 \title{Get datasource connection}
 \usage{
-carriots.analytics.connect()
+carriots.analytics.connect(url, token)
 }
 \arguments{
 \item{baseUrl}{- Envision server URL}
