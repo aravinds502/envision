@@ -42,6 +42,10 @@ carriots.analytics.metadata <- function(url, token, isParameterized) {
 
 }
 
+###############################################################
+#' Get meta data
+#'
+#' @export
 carriots.analytics.getMetaData <- function() {
   return(get("carriotsMeta")$getToken())
 }
