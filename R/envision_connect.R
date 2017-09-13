@@ -5,7 +5,7 @@
 #' @param url - Envision server URL
 #' @param token - Secret key for the datasource
 #'                    obtained from the App
-#' @param isParameterized - TRUE/FALSE based on the module                  
+#' @param isParameterized - TRUE/FALSE based on the module
 #' @export
 carriots.analytics.metadata <- function(url, token, isParameterized) {
   # //////////////////////////////////////////////////////
@@ -16,7 +16,7 @@ carriots.analytics.metadata <- function(url, token, isParameterized) {
       token = "",
       parameterized = FALSE
     ),
-    
+
     public = list(
       initialize = function(uRL,tkn,flag) {
         private$url <- uRL
@@ -34,9 +34,16 @@ carriots.analytics.metadata <- function(url, token, isParameterized) {
       }
     )
   )
-  
+
   meta <- BAMetaData$new(url, token, isParameterized)
-  meta
+  setArea <- function(value) {
+    assign("carriotsMeta", meta)
+  }
+
+}
+
+carriots.analytics.getMetaData <- function() {
+  return(get("carriotsMeta")$getToken())
 }
 ###############################################################
 #'Get datasource connection
