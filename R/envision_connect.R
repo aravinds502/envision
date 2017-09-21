@@ -44,17 +44,35 @@ carriots.analytics.connect <- function(url,token) {
     "BAConnection",
     private = list(
       conn_data = '',
-      createTable = function(df,tableName,colName,type) {
-        if(is.null(tableName))
-          stop("Invalid table name")
-
-        md5table <- digest::digest(tableName,"md5",serialize = FALSE)
-        temp <- unlist(strsplit(private$conn_data$factTable,split = "[.]"))
-        if(length(temp) > 1)
-         md5table <- paste(temp[1],".",private$conn_data$quot(md5table),sep="")
+      createTable = function(df,colName,type) {
+        if(is.null(colName))
+          stop("Invalid column name")
+        
+        temp <- gsub("\"","",private$conn_data$factTable)
+        temp <- unlist(strsplit(temp,split = "[.]"))
+        dsName <- NULL
+        schema <- NULL
+        if(length(temp) > 1){
+          schema <- temp[1]
+          dsName <- temp[2]
+        }
         else
-          md5table <- private$conn_data$quot(md5table)
+          dsName <- temp
+        
+        tableName <- paste(dsName,colName, sep="_")
+        
+        # If module is parameterized append the userName as well _<USERNAME> to tableName
+        if(carriots.analytics.isParametrised)
+          tableName <- paste(tableName,private$conn_data$username, sep="_")
+        
+        print(tableName)
+        md5table <- digest::digest(tableName,"md5",serialize = FALSE)
 
+        print(md5table)
+        md5table <- private$conn_data$quot(md5table)
+        if(!is.null(schema))
+          md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
+        
         private$dropIfExists(md5table)
 
         colNames <- colnames(df)
@@ -177,14 +195,7 @@ carriots.analytics.connect <- function(url,token) {
         if(!(colName %in% colnames(df)))
           stop("Specified column doesnt exists in the data frame")
 
-        #create a duplicate tabel with additional column, named as MD5(<FACTTABLE>_<COLNAME>)
-        tableName <- paste(private$conn_data$factTable,colName, sep="_")
-
-        # If module is parameterized append the userName as well _<USERNAME> to tableName
-        if(carriots.analytics.isParametrized)
-          tableName <- paste(tableName,private$conn_data$username, sep="_")
-
-        md5Table <- private$createTable(df,tableName,colName,type)
+        md5Table <- private$createTable(df,colName,type)
 
         label2Col <-private$conn_data$columns
         orgNames <- names(df)
