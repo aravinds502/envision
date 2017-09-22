@@ -395,7 +395,7 @@ getDatasourceConnection <- function(baseUrl,token) {
     ftable <- connect_data$ftable
     data <- NULL
     data$ftable <- ftable
-    data$username <- data$user_login_name
+    data$username <- connect_data$user_login_name
     data$jdbc <- conn
     data$quot <- jdbcDetails$quot
     data$columns <- connect_data$columns
