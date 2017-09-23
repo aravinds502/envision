@@ -195,16 +195,27 @@ carriots.analytics.connect <- function(url,token) {
         if(!(colName %in% colnames(df)))
           stop("Specified column doesnt exists in the data frame")
 
-        md5Table <- private$createTable(df,colName,type)
-
         label2Col <-private$conn_data$columns
         orgNames <- names(df)
         for(i in 1:length(orgNames)) {
-          if(orgNames[i]!=colName)
-          names(df)[i] <- label2Col[orgNames[i]]
+          if(orgNames[i]!=colName) {
+            label <- label2Col[orgNames[i]]
+            if(is.null(label)) 
+              stop("Dataframe has an unexpected column")
+            names(df)[i] <- label
+          } else {
+            if(exists(paste("carriots.analytics.dervived_dim_name"))){
+              names(df)[i] <- carriots.analytics.dervived_dim_name
+              colName <- carriots.analytics.dervived_dim_name
+            }
+              
+          }
         }
+        
+        #create table
+        md5Table <- private$createTable(df,colName,type)
 
-       #insert in to new table
+        #insert in to new table
         private$insertData(md5Table,df)
       },
 
