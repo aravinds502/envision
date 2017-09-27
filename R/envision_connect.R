@@ -137,7 +137,9 @@ carriots.analytics.connect <- function(url,token) {
         for(i in 1:nrow(dataframe)) {
           if( i > 1) values <- paste(values,",")
           row <- dataframe[i,]
-          values <- paste(values,paste("(",paste(paste("'",row,"'",sep=""),collapse=","),")",sep = ""))
+          #string values are printed with index
+          #values <- paste(values,paste("(",paste(paste("'",row,"'",sep=""),collapse=","),")",sep = ""))
+          values <- paste(values,paste("(",paste(apply(row,1,function(k) {paste(paste("'",k,"'",sep=""),collapse=",")})),")",sep = ""))
         }
 
         query <- paste(query,values)
