@@ -84,7 +84,7 @@ carriots.analytics.connect <- function(url,token) {
          else
            dsName <- temp
         
-        md5table <- private$conn_data$quot(md5table)
+        md5table <- private$conn_data$quot(dsName)
         if(!is.null(schema))
            md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
         
