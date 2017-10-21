@@ -47,31 +47,33 @@ carriots.analytics.connect <- function(url,token) {
       createTable = function(df,colName,type) {
         if(is.null(colName))
           stop("Invalid column name")
-        
-        temp <- gsub("\"","",private$conn_data$factTable)
-        temp <- unlist(strsplit(temp,split = "[.]"))
-        dsName <- NULL
-        schema <- NULL
-        if(length(temp) > 1){
-          schema <- temp[1]
-          dsName <- temp[2]
-        }
-        else
-          dsName <- temp
-        
-        tableName <- paste(dsName,colName, sep="_")
-        
-        # If module is parameterized append the userName as well _<USERNAME> to tableName
-        if(carriots.analytics.isParametrised)
-          tableName <- paste(tableName,private$conn_data$username, sep="_")
-        
-        print(tableName)
-        md5table <- digest::digest(tableName,"md5",serialize = FALSE)
-
-        print(md5table)
-        md5table <- private$conn_data$quot(md5table)
-        if(!is.null(schema))
-          md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
+        # 
+        # temp <- gsub("\"","",private$conn_data$factTable)
+        # temp <- unlist(strsplit(temp,split = "[.]"))
+        # dsName <- NULL
+        # schema <- NULL
+        # if(length(temp) > 1){
+        #   schema <- temp[1]
+        #   dsName <- temp[2]
+        # }
+        # else
+        #   dsName <- temp
+        # 
+        # tableName <- paste(dsName,colName, sep="_")
+        # 
+        # # If module is parameterized append the userName as well _<USERNAME> to tableName
+        # if(carriots.analytics.isParametrised)
+        #   tableName <- paste(tableName,private$conn_data$username, sep="_")
+        # 
+        # print(tableName)
+        # md5table <- digest::digest(tableName,"md5",serialize = FALSE)
+        # 
+        # print(md5table)
+        # md5table <- private$conn_data$quot(md5table)
+        # if(!is.null(schema))
+        #   md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
+        # 
+        md5table <- carriots.analytics.fact_table_name
         
         private$dropIfExists(md5table)
 
@@ -219,6 +221,12 @@ carriots.analytics.connect <- function(url,token) {
 
         #insert in to new table
         private$insertData(md5Table,df)
+        
+        #Fire an event to reload the table in the app
+        params <- list(dim=carriots.analytics.dervived_dim_name,support_table=md5Table)
+        res <- doHttpCall(url,token,"reloadext",params)
+        
+        res
       },
 
       getColumnNames = function() {
@@ -420,7 +428,7 @@ getDatasourceConnection <- function(baseUrl,token) {
   data
 }
 
-doHttpCall <- function(baseUrl,token,identifier) {
+doHttpCall <- function(baseUrl,token,identifier,paramList) {
   url_length <- stringr::str_length(baseUrl)
 
   if(substr(baseUrl,url_length,url_length) == "/") {
@@ -430,9 +438,13 @@ doHttpCall <- function(baseUrl,token,identifier) {
   baseUrl <- paste(baseUrl,"/datasource.do?action=",identifier, sep="")
 
   ua      <- "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0"
+  
+  params <- list(dstoken=token)
+  if(!missing(paramList) && length(paramList) > 0)
+   params <- append(params,paramList)
 
   doc <- httr::POST(baseUrl,
-                    query = list(dstoken=token),
+                    query = params,
                     httr::user_agent(ua))
   res <- httr::content(doc,useInternalNodes=T)
 
