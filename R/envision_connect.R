@@ -73,7 +73,20 @@ carriots.analytics.connect <- function(url,token) {
         # if(!is.null(schema))
         #   md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
         # 
-        md5table <- carriots.analytics.fact_table_name
+        temp <- carriots.analytics.fact_table_name
+        temp <- unlist(strsplit(temp,split = "[.]"))
+        dsName <- NULL
+        schema <- NULL
+        if(length(temp) > 1){
+          schema <- temp[1]
+          dsName <- temp[2]
+        }
+         else
+           dsName <- temp
+        
+        md5table <- private$conn_data$quot(md5table)
+        if(!is.null(schema))
+           md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
         
         private$dropIfExists(md5table)
 
