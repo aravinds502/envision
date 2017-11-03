@@ -4,13 +4,15 @@
 \alias{carriots.analytics.reload_dataSource}
 \title{Reload Datasource}
 \usage{
-carriots.analytics.reload_dataSource(baseUrl, secretKey)
+carriots.analytics.reload_dataSource(baseUrl, token, apiKey)
 }
 \arguments{
 \item{baseUrl}{- Envision server URL}
 
-\item{secretKey}{- Secret key for the datasource
+\item{token}{- Token for the datasource
 obtained from the App}
+
+\item{apiKey}{- ApiKey for the user/company}
 }
 \description{
 Function to refresh the datasource in envision, which reflects

@@ -4,13 +4,15 @@
 \alias{carriots.analytics.connect}
 \title{Get datasource connection}
 \usage{
-carriots.analytics.connect(url, token)
+carriots.analytics.connect(url, token, apiKey)
 }
 \arguments{
-\item{baseUrl}{- Envision server URL}
-
-\item{secretKey}{- Secret key for the datasource
+\item{token}{- Token for the datasource
 obtained from the App}
+
+\item{apiKey}{- ApiKey for the user/company}
+
+\item{baseUrl}{- Envision server URL}
 }
 \description{
 This is a function to obtain connection to a

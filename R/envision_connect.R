@@ -6,8 +6,9 @@
 #' obtained from the envision App for the specific datasource
 #'
 #' @param baseUrl - Envision server URL
-#' @param secretKey - Secret key for the datasource
+#' @param token - Token for the datasource
 #'                    obtained from the App
+#' @param apiKey  - ApiKey for the user/company
 #' @export
 carriots.analytics.connect <- function(url,token,apiKey) {
 
@@ -47,7 +48,7 @@ carriots.analytics.connect <- function(url,token,apiKey) {
       createTable = function(df,colName,type) {
         if(is.null(colName))
           stop("Invalid column name")
-        # 
+        #
         # temp <- gsub("\"","",private$conn_data$factTable)
         # temp <- unlist(strsplit(temp,split = "[.]"))
         # dsName <- NULL
@@ -58,21 +59,21 @@ carriots.analytics.connect <- function(url,token,apiKey) {
         # }
         # else
         #   dsName <- temp
-        # 
+        #
         # tableName <- paste(dsName,colName, sep="_")
-        # 
+        #
         # # If module is parameterized append the userName as well _<USERNAME> to tableName
         # if(carriots.analytics.isParametrised)
         #   tableName <- paste(tableName,private$conn_data$username, sep="_")
-        # 
+        #
         # print(tableName)
         # md5table <- digest::digest(tableName,"md5",serialize = FALSE)
-        # 
+        #
         # print(md5table)
         # md5table <- private$conn_data$quot(md5table)
         # if(!is.null(schema))
         #   md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
-        # 
+        #
         temp <- carriots.analytics.fact_table_name
         temp <- unlist(strsplit(temp,split = "[.]"))
         dsName <- NULL
@@ -83,11 +84,11 @@ carriots.analytics.connect <- function(url,token,apiKey) {
         }
          else
            dsName <- temp
-        
+
         md5table <- private$conn_data$quot(dsName)
         if(!is.null(schema))
            md5table <- paste(private$conn_data$quot(schema),md5table,sep=".")
-        
+
         private$dropIfExists(md5table)
 
         colNames <- colnames(df)
@@ -217,7 +218,7 @@ carriots.analytics.connect <- function(url,token,apiKey) {
         for(i in 1:length(orgNames)) {
           if(orgNames[i]!=colName) {
             label <- label2Col[orgNames[i]]
-            if(is.null(label)) 
+            if(is.null(label))
               stop("Dataframe has an unexpected column")
             names(df)[i] <- label
           } else {
@@ -225,21 +226,21 @@ carriots.analytics.connect <- function(url,token,apiKey) {
               names(df)[i] <- carriots.analytics.dervived_dim_name
               colName <- carriots.analytics.dervived_dim_name
             }
-              
+
           }
         }
-        
+
         #create table
         md5Table <- private$createTable(df,colName,type)
 
         #insert in to new table
         private$insertData(md5Table,df)
-        
+
         #Fire an event to reload the table in the app
         params <- list(dstoken=token,dim=carriots.analytics.dervived_dim_name,support_table=md5Table)
         headerParams <- c('X-CA-apiKey'=apiKey)
         res <- doHttpCall(url,"reloadext",params,headerParams)
-        
+
         res
       },
 
@@ -305,8 +306,10 @@ carriots.analytics.updateFrame = function(conn = NULL,dataframe=NULL,colname=NUL
 #' the latest update
 #'
 #' @param baseUrl - Envision server URL
-#' @param secretKey - Secret key for the datasource
+#' @param token - Token for the datasource
 #'                    obtained from the App
+#' @param apiKey  - ApiKey for the user/company
+#'
 #' @export
 carriots.analytics.reload_dataSource <- function(baseUrl,token,apiKey) {
   headerParams <- c('X-CA-apiKey'=apiKey)
@@ -386,6 +389,7 @@ getColumn2Label <- function(colList) {
 #' @param baseUrl - Envision server URL
 #' @param token - token for the datasource
 #'                    obtained from the App
+#' @param apiKey  - ApiKey for the user/company
 #--------------------------------------------------------------
 getDataSourceMetaData <- function(baseUrl,token,apiKey) {
   headerParams <- c('X-CA-apiKey'=apiKey)
@@ -404,6 +408,7 @@ getDataSourceMetaData <- function(baseUrl,token,apiKey) {
 #' @param baseUrl - Envision server URL
 #' @param token - token for the datasource
 #'                    obtained from the App
+#' @param apiKey  - ApiKey for the user/company
 #-----------------------------------------------------------------------
 getDatasourceConnection <- function(baseUrl,token,apiKey) {
 
