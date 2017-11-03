@@ -9,7 +9,7 @@
 #' @param secretKey - Secret key for the datasource
 #'                    obtained from the App
 #' @export
-carriots.analytics.connect <- function(url,token) {
+carriots.analytics.connect <- function(url,token,apiKey) {
 
   # //////////////////////////////////////////////////////
   BAConnectionData <- R6::R6Class(
@@ -236,8 +236,9 @@ carriots.analytics.connect <- function(url,token) {
         private$insertData(md5Table,df)
         
         #Fire an event to reload the table in the app
-        params <- list(dim=carriots.analytics.dervived_dim_name,support_table=md5Table)
-        res <- doHttpCall(url,token,"reloadext",params)
+        params <- list(dstoken=token,dim=carriots.analytics.dervived_dim_name,support_table=md5Table)
+        headerParams <- c('X-CA-apiKey'=apiKey)
+        res <- doHttpCall(url,"reloadext",params,headerParams)
         
         res
       },
@@ -252,7 +253,7 @@ carriots.analytics.connect <- function(url,token) {
   # //////////////////////////////////////////////////////
   # Call the envision REST API to get the connection data
   # Based on the engine type, get the appropriate JDBC driver
-  data <- getDatasourceConnection(url,token)
+  data <- getDatasourceConnection(url,token,apiKey)
 
   jdbc <- data$jdbc
   factTable <- data$ftable
@@ -307,8 +308,10 @@ carriots.analytics.updateFrame = function(conn = NULL,dataframe=NULL,colname=NUL
 #' @param secretKey - Secret key for the datasource
 #'                    obtained from the App
 #' @export
-carriots.analytics.reload_dataSource <- function(baseUrl,secretKey) {
-  res <- doHttpCall(baseUrl,secretKey,"reloadext")
+carriots.analytics.reload_dataSource <- function(baseUrl,token,apiKey) {
+  headerParams <- c('X-CA-apiKey'=apiKey)
+  queryParams <- list(dstoken=token)
+  res <- doHttpCall(baseUrl,"reloadext",queryParams,headerParams)
   res
 }
 
@@ -384,9 +387,10 @@ getColumn2Label <- function(colList) {
 #' @param token - token for the datasource
 #'                    obtained from the App
 #--------------------------------------------------------------
-getDataSourceMetaData <- function(baseUrl,token) {
-
-  res <- doHttpCall(baseUrl,token,"dsExtConnect")
+getDataSourceMetaData <- function(baseUrl,token,apiKey) {
+  headerParams <- c('X-CA-apiKey'=apiKey)
+  queryParams <- list(dstoken=token)
+  res <- doHttpCall(baseUrl,"dsExtConnect",queryParams,headerParams)
   res
 }
 
@@ -401,9 +405,9 @@ getDataSourceMetaData <- function(baseUrl,token) {
 #' @param token - token for the datasource
 #'                    obtained from the App
 #-----------------------------------------------------------------------
-getDatasourceConnection <- function(baseUrl,token) {
+getDatasourceConnection <- function(baseUrl,token,apiKey) {
 
-  data <- getDataSourceMetaData(baseUrl,token)
+  data <- getDataSourceMetaData(baseUrl,token,apiKey)
   if (!is.null(data$connect_data)) {
     connect_data <- data$connect_data
     jdbcDetails <- getDriverDetails(connect_data)
@@ -441,7 +445,7 @@ getDatasourceConnection <- function(baseUrl,token) {
   data
 }
 
-doHttpCall <- function(baseUrl,token,identifier,paramList) {
+doHttpCall <- function(baseUrl,identifier,queryParams,headerParams) {
   url_length <- stringr::str_length(baseUrl)
 
   if(substr(baseUrl,url_length,url_length) == "/") {
@@ -451,13 +455,10 @@ doHttpCall <- function(baseUrl,token,identifier,paramList) {
   baseUrl <- paste(baseUrl,"/datasource.do?action=",identifier, sep="")
 
   ua      <- "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0"
-  
-  params <- list(dstoken=token)
-  if(!missing(paramList) && length(paramList) > 0)
-   params <- append(params,paramList)
 
   doc <- httr::POST(baseUrl,
-                    query = params,
+                    httr::add_headers(.headers = headerParams),
+                    query = queryParams,
                     httr::user_agent(ua))
   res <- httr::content(doc,useInternalNodes=T)
 
