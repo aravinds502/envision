@@ -35,20 +35,20 @@ connect.ca <- function(url, token, apiKey) {
         self$q <- qVar
         self$username <- uname
       },
-      
+
       quot = function(attribute) {
         tmp <- ""
         tmp <- paste(self$q, attribute, self$q, sep = "")
         tmp
       },
-      
+
       finalize = function() {
         if (!is.null(jdbc))
           RJDBC::dbDisconnect(jdbc)
       }
     )
   )
-  
+
   # //////////////////////////////////////////////////////
   BAConnection <- R6::R6Class(
     "BAConnection",
@@ -93,26 +93,26 @@ connect.ca <- function(url, token, apiKey) {
         }
         else
           dsName <- temp
-        
+
         md5table <- private$conn_data$quot(dsName)
         if (!is.null(schema))
           md5table <-
           paste(private$conn_data$quot(schema), md5table, sep = ".")
-        
+
         private$dropIfExists(md5table)
-        
+
         colNames <- colnames(df)
         colNames <- colNames[colNames != colName]
-        
+
         if (!all(colNames %in% self$getColumnNames()))
           stop("Data Frame has more than one new column compared to fact table")
-        
+
         query <- "CREATE TABLE"
         query <- paste(query, md5table, "AS")
         colString <-
           paste(private$conn_data$quot(colNames), ",", collapse = "")
         colString <- substr(colString, 1, nchar(colString) - 1)
-        
+
         orgQuery <-
           paste("(",
                 "SELECT",
@@ -122,16 +122,16 @@ connect.ca <- function(url, token, apiKey) {
                 "WHERE 1=2",
                 ")")
         query <- paste(query, orgQuery)
-        
+
         print(query)
         RJDBC::dbSendUpdate(private$conn_data$jdbc, query)
-        
+
         #Add a column first
         private$addColumn(md5table, name = colName, type = type)
-        
+
         md5table
-        
-        
+
+
       },
       addColumn = function(md5table,
                            name = NULL,
@@ -139,10 +139,10 @@ connect.ca <- function(url, token, apiKey) {
                            default = NULL) {
         if (is.null(name) | is.null(type))
           stop("Column name or type is empty")
-        
+
         if (!(type %in% names(private$conn_data$ba2DBTypes)))
           stop(paste("Invalid Type selected", "-", type))
-        
+
         alterQuery <- "ALTER TABLE"
         alterQuery <-
           paste(
@@ -162,20 +162,22 @@ connect.ca <- function(url, token, apiKey) {
         print(alterQuery)
         RJDBC::dbSendUpdate(private$conn_data$jdbc, alterQuery)
       },
-      
+
       insertData = function(tablename, dataframe) {
         if (nrow(dataframe) < 1)
           stop("No data available in dataframe")
-        
+
         query <- "INSERT INTO"
         query <- paste(query, tablename)
         colNames <- paste("\"", colnames(dataframe), "\"", sep = "")
         query <- paste(query, "(", paste(colNames, collapse = ","), ")")
-        
+
+        print(paste("intial--->",query))
+
         query <- paste(query, "VALUES")
-        
+
         values <- ""
-        
+
         for (i in 1:nrow(dataframe)) {
           if (i > 1)
             values <- paste(values, ",")
@@ -187,14 +189,14 @@ connect.ca <- function(url, token, apiKey) {
               paste(paste("'", k, "'", sep = ""), collapse = ",")
             })), ")", sep = ""))
         }
-        
+
         query <- paste(query, values)
         print(query)
-        
+
         RJDBC::dbSendUpdate(private$conn_data$jdbc, query)
-        
+
       },
-      
+
       dropIfExists = function(tableName) {
         t <- tableName
         temp <- unlist(strsplit(t, split = "[.]"))
@@ -202,9 +204,9 @@ connect.ca <- function(url, token, apiKey) {
           RJDBC::dbSendUpdate(private$conn_data$jdbc, paste("set schema", temp[1]))
           t <- temp[2]
         }
-        
+
         t <- gsub("\"", "", t)
-        
+
         if (RJDBC::dbExistsTable(private$conn_data$jdbc, t)) {
           RJDBC::dbRemoveTable(private$conn_data$jdbc,
                                DBI::dbQuoteIdentifier(private$conn_data$jdbc, t))
@@ -225,40 +227,40 @@ connect.ca <- function(url, token, apiKey) {
             TIME = "TIME"
           )
       },
-      
+
       load = function(columns = NULL) {
         query <-
           paste("SELECT ",
                 getColumns(colSelected = columns, private$conn_data),
                 sep = "")
-        
+
         query <- paste(query, "FROM", private$conn_data$factTable)
         # if(!is.null(limit) & !is.na(limit) & limit > 0)
         #   query <- paste(query, "LIMIT",limit)
-        
+
         df <- RJDBC::dbGetQuery(private$conn_data$jdbc, query)
         col2Label <- getColumn2Label(private$conn_data$columns)
         orgNames <- names(df)
         for (i in 1:length(orgNames)) {
           names(df)[i] <- col2Label[names(df)[i]]
         }
-        
+
         df
       },
-      
+
       close = function() {
         RJDBC::dbDisconnect(private$conn_data$jdbc)
       },
-      
+
       updateDataFrame = function(df = NULL,
                                  colName = NULL,
                                  type = NULL) {
         if (is.na(df) || missing(colName))
           stop("Required parameters were missing")
-        
+
         if (!(colName %in% colnames(df)))
           stop("Specified column doesnt exists in the data frame")
-        
+
         label2Col <- private$conn_data$columns
         orgNames <- names(df)
         for (i in 1:length(orgNames)) {
@@ -270,19 +272,20 @@ connect.ca <- function(url, token, apiKey) {
           } else {
             if (exists(paste("carriots.analytics.dervived_dim_name"))) {
 			  carriots.analytics.dervived_dim_name <- gsub("\"","",carriots.analytics.dervived_dim_name)
+			        print(paste("dimName------>",carriots.analytics.dervived_dim_name))
               names(df)[i] <- carriots.analytics.dervived_dim_name
               colName <- carriots.analytics.dervived_dim_name
             }
-            
+
           }
         }
-        
+
         #create table
         md5Table <- private$createTable(df, colName, type)
-        
+
         #insert in to new table
         private$insertData(md5Table, df)
-        
+
         #Fire an event to reload the table in the app
         params <-
           list(dstoken = token,
@@ -290,28 +293,28 @@ connect.ca <- function(url, token, apiKey) {
                support_table = md5Table)
         headerParams <- c('X-CA-apiKey' = apiKey)
         res <- doHttpCall(url, "reloadext", params, headerParams)
-        
+
         res
       },
-      
+
       getColumnNames = function() {
         cols <- names(private$conn_data$columns)
         cols
       }
     )
   )
-  
+
   # //////////////////////////////////////////////////////
   # Call the CA REST API to get the connection data
   # Based on the engine type, get the appropriate JDBC driver
   data <- getDatasourceConnection(url, token, apiKey)
-  
+
   jdbc <- data$jdbc
   factTable <- data$ftable
   columns <- data$columns
   quot <- data$quot
   ba2DBTypes <- getDataTypes(data$engineType)
-  
+
   connect_data <-
     BAConnectionData$new(factTable, jdbc, columns, ba2DBTypes, quot, data$username)
   conn <- BAConnection$new(connect_data)
@@ -396,7 +399,7 @@ getDataTypes <- function(engineType) {
       DATETIME = "TIMESTAMP",
       TIME = "TIME"
     )
-  
+
   if (toupper(engineType) == "ORACLE") {
     dataTypes$NUMERIC = "NUMBER(20,4)"
     dataTypes$INTEGER = "NUMBER(20)"
@@ -409,7 +412,7 @@ getDataTypes <- function(engineType) {
     dataTypes$NUMERIC = "DOUBLE PRECISION"
     dataTypes$INTEGER = "BIGINT"
   }
-  
+
   dataTypes
 }
 
@@ -429,20 +432,20 @@ getColumns <- function(colSelected = NULL, conn) {
     }
   } else
     colString <- "*"
-  
+
   colString
 }
 
 getColumn2Label <- function(colList) {
   column <- paste(colList)
   labels <- names(colList)
-  
+
   col2Label <- list()
   for (i in 1:length(labels))
     col2Label[column[i]] = labels[i]
-  
+
   col2Label
-  
+
 }
 
 #-------------------------------------------------------------
@@ -484,7 +487,7 @@ getDatasourceConnection <- function(baseUrl, token, apiKey) {
     if (is.null(jdbcDetails$driverClass) ||
         is.null(jdbcDetails$driver) || is.null(jdbcDetails$connString))
       stop("Unable to create JDBC connection- required info missing")
-    
+
     #decrypt password
     passWord <- character()
     encrypt <- strsplit(connect_data$password, "")[[1]]
@@ -494,7 +497,7 @@ getDatasourceConnection <- function(baseUrl, token, apiKey) {
     decrypt <- paste(passWord, collapse = "")
     passWord <- stringi::stri_reverse(decrypt)
     passWord <- rawToChar(base64enc::base64decode(passWord))
-    
+
     #passPhrase <- digest::AES(connect_data$ftable,mode="CBC")
     #passPhrase <- substr(passPhrase,0,8)
     #aes <- digest::AES(passPhrase,mode="CBC")
@@ -516,7 +519,7 @@ getDatasourceConnection <- function(baseUrl, token, apiKey) {
     data$quot <- jdbcDetails$quot
     data$columns <- connect_data$columns
     data$engineType <- connect_data$engine_type
-    
+
   } else {
     stop("Connect data of the datasource not available")
   }
@@ -529,25 +532,25 @@ doHttpCall <-
            queryParams,
            headerParams) {
     url_length <- stringr::str_length(baseUrl)
-    
+
     if (substr(baseUrl, url_length, url_length) == "/") {
       baseUrl <- substr(baseUrl, 0, url_length - 1)
     }
-    
+
     baseUrl <-
       paste(baseUrl, "/datasource.do?action=", identifier, sep = "")
-    
+
     ua      <-
       "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0"
-    
+
     doc <- httr::POST(baseUrl,
                       httr::add_headers(.headers = headerParams),
                       query = queryParams,
                       httr::user_agent(ua))
     res <- httr::content(doc, useInternalNodes = T)
-    
+
     data <- jsonlite::fromJSON(res)
-    
+
     data
   }
 
@@ -555,17 +558,17 @@ getDriverDetails <- function(connect_data) {
   if (is.null(connect_data$engine_type))
     stop("Engine Type not found")
   engineType <- connect_data$engine_type
-  
+
   if (is.null(connect_data$hostname))
     stop("Host Name not found")
   host_port <- connect_data$hostname
-  
+
   if (!is.null(connect_data$port))
     host_port <- paste(host_port, connect_data$port, sep = ":")
-  
+
   if (is.null(connect_data$dbName))
     stop("DBName not found")
-  
+
   jdbcDetails <- NULL
   if (toupper(engineType) == "MONETDB") {
     jdbcDetails$driverClass <- "nl.cwi.monetdb.jdbc.MonetDriver"
@@ -577,14 +580,14 @@ getDriverDetails <- function(connect_data) {
             connect_data$dbName,
             sep = "")
     jdbcDetails$quot <- "\""
-    
+
   } else if (toupper(engineType) == "MYSQL") {
     jdbcDetails$driverClass <- "com.mysql.jdbc.Driver"
     jdbcDetails$driver <- "mysql-connector-java-5.1.21-bin"
     jdbcDetails$connString <-
       paste("jdbc:mysql://", host_port, "/", connect_data$dbName, sep = "")
     jdbcDetails$quot <- "`"
-    
+
   } else if (toupper(engineType) == "POSTGRESQL" ||
              toupper(engineType) == "REDSHIFT") {
     jdbcDetails$driverClass <- "org.postgresql.Driver"
@@ -596,7 +599,7 @@ getDriverDetails <- function(connect_data) {
             connect_data$dbName,
             sep = "")
     jdbcDetails$quot <- "\""
-    
+
   } else if (toupper(engineType) == "SQLSERVER") {
     jdbcDetails$driverClass <-
       "com.microsoft.sqlserver.jdbc.SQLServerDriver"
@@ -606,7 +609,7 @@ getDriverDetails <- function(connect_data) {
             getSQLServerConnString(connect_data),
             sep = "")
     jdbcDetails$quot <- "\""
-    
+
   } else if (toupper(engineType) == "ORACLE") {
     jdbcDetails$driverClass <- "oracle.jdbc.driver.OracleDriver"
     jdbcDetails$driver <- "ojdbc6.jar"
@@ -617,14 +620,14 @@ getDriverDetails <- function(connect_data) {
             connect_data$dbName,
             sep = "")
     jdbcDetails$quot <- "\""
-    
+
   } else if (toupper(engineType) == "SUNDB") {
     jdbcDetails$driverClass <- "sunje.sundb.jdbc.SundbDriver"
     jdbcDetails$driver <- "sundb6.jar"
     jdbcDetails$connString <-
       paste("jdbc:sundb://", host_port, "/", connect_data$dbName, sep = "")
     jdbcDetails$quot <- "\""
-    
+
   } else if (toupper(engineType) == "MARIADB") {
     jdbcDetails$driverClass <- "org.mariadb.jdbc.Driver"
     jdbcDetails$driver <- "mariadb-java-client-1.3.3.jar"
@@ -636,7 +639,7 @@ getDriverDetails <- function(connect_data) {
             sep = "")
     jdbcDetails$quot <- "\""
   }
-  
+
   jdbcDetails
 }
 
@@ -645,6 +648,6 @@ getSQLServerConnString <- function(connect_data) {
     paste(connect_data$hostname, connect_data$dbName, sep = "\\")
   if (!is.null(connect_data$port))
     conn_string <- paste(conn_string, connect_data$port, sep = ":")
-  
+
   conn_string
 }
